@@ -6,8 +6,8 @@ on:
     branches: [ main ]
 
 env:
-  REPO_URL: https://github.com/immortalwrt/immortalwrt
-  REPO_BRANCH: openwrt-23.05
+  REPO_URL: https://github.com/Y0518/immortalwrt
+  REPO_BRANCH: openwrt-21.02
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
         run: |
           cp .config immortalwrt/.config
           bash patches/device-add.sh immortalwrt
-          # add Y0518 modemfeed (luci-app-modeminfo / atinout)
+          # add Y0518/modemfeed (we826q private pkg + modeminfo/atinout/wwan/etc)
           echo 'src-git modemfeed https://github.com/Y0518/modemfeed.git' >> immortalwrt/feeds.conf.default
 
       - name: Update & install feeds

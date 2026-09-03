@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================================
-# device-add.sh — 给 immortalwrt 源码添加 zbt_we826-q 设备支持
-# 在 clone 源码后、make 前执行。
+# device-add.sh — 给 Y0518/immortalwrt 源码添加 zbt_we826-q 设备支持
+# 在 clone 源码后、make 前执行。依赖 Y0518/modemfeed feed（脚本会自动加）。
 # 用法：在 immortalwrt 源码根目录执行：bash ../device-add.sh
 # ============================================================================
 set -e
@@ -9,10 +9,15 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${1:-.}"
 
-echo "[1/4] 复制 dts"
+echo "[0/5] 加 Y0518/modemfeed feed（含 we826q 私有包 + luci-app-mmconfig + qfirehose + wwan）"
+F="$SRC/feeds.conf.default"
+grep -q "koshev-msk\|Y0518/modemfeed" "$F" || \
+  echo 'src-git modemfeed https://github.com/Y0518/modemfeed.git' >> "$F"
+
+echo "[1/5] 复制 dts"
 cp "$HERE/qca9531_zbt_we826-q.dts" "$SRC/target/linux/ath79/dts/"
 
-echo "[2/4] 追加 generic.mk Device 段"
+echo "[2/5] 追加 generic.mk Device 段"
 cat >> "$SRC/target/linux/ath79/image/generic.mk" <<'EOF'
 
 define Device/zbt_we826-q
@@ -27,10 +32,7 @@ endef
 TARGET_DEVICES += zbt_we826-q
 EOF
 
-echo "[3/4] 追加 02_network 分支"
-# 在 ath79_setup_interfaces() 函数里、最后一个 case 的 ;; 之前插入。
-# 用一个锚点：找 "zbtlink,zbt-wd323)" 或直接追加到文件尾部一个新函数前不合适，
-# 这里用 sed 在 "glinet,gl-x300b)" 分支前插入（字母序接近）。
+echo "[3/5] 追加 02_network 分支"
 NET="$SRC/target/linux/ath79/generic/base-files/etc/board.d/02_network"
 grep -q "zbt,we826-q)" "$NET" || {
   python3 - "$NET" <<'PYEOF'
@@ -53,7 +55,7 @@ else:
 PYEOF
 }
 
-echo "[4/4] 追加 01_leds 分支"
+echo "[4/5] 追加 01_leds 分支"
 LEDS="$SRC/target/linux/ath79/generic/base-files/etc/board.d/01_leds"
 grep -q "zbt,we826-q)" "$LEDS" || {
   python3 - "$LEDS" <<'PYEOF'
@@ -75,5 +77,9 @@ else:
     print("01_leds: anchor not found or already present")
 PYEOF
 }
+
+echo "[5/5] 默认选中 we826q 包（如果存在）"
+[ -d "$SRC/package/feeds/modemfeed/we826q" ] && \
+  echo 'CONFIG_PACKAGE_we826q=y' >> "$SRC/.config"
 
 echo "device-add.sh done"
