@@ -1,23 +1,20 @@
-#!/bin/bash
+﻿#!/bin/bash
 # ============================================================================
-# device-add.sh — 给 Y0518/immortalwrt 源码添加 zbt_we826-q 设备支持
-# 在 clone 源码后、make 前执行。依赖 Y0518/modemfeed feed（脚本会自动加）。
-# 用法：在 immortalwrt 源码根目录执行：bash ../device-add.sh
+# device-add.sh - add zbt_we826-q device support to Y0518/immortalwrt source
+# Run after cloning source, before make.
+# NOTE: modemfeed feed is added by the workflow (with ^commit pin), NOT here,
+#       to avoid duplicate feed names breaking ./scripts/feeds update -a.
+# Usage: in immortalwrt source root: bash ../device-add.sh
 # ============================================================================
 set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${1:-.}"
 
-echo "[0/5] 加 Y0518/modemfeed feed（含 we826q 私有包 + luci-app-mmconfig + qfirehose + wwan）"
-F="$SRC/feeds.conf.default"
-grep -q "koshev-msk\|Y0518/modemfeed" "$F" || \
-  echo 'src-git modemfeed https://github.com/Y0518/modemfeed.git' >> "$F"
-
-echo "[1/5] 复制 dts"
+echo "[1/4] copy dts"
 cp "$HERE/qca9531_zbt_we826-q.dts" "$SRC/target/linux/ath79/dts/"
 
-echo "[2/5] 追加 generic.mk Device 段"
+echo "[2/4] append generic.mk Device block"
 cat >> "$SRC/target/linux/ath79/image/generic.mk" <<'EOF'
 
 define Device/zbt_we826-q
@@ -32,9 +29,9 @@ endef
 TARGET_DEVICES += zbt_we826-q
 EOF
 
-echo "[3/5] 追加 02_network 分支"
+echo "[3/4] append 02_network case"
 NET="$SRC/target/linux/ath79/generic/base-files/etc/board.d/02_network"
-grep -q "zbt,we826-q)" "$NET" || {
+if ! grep -q "zbt,we826-q)" "$NET"; then
   python3 - "$NET" <<'PYEOF'
 import sys
 p = sys.argv[1]
@@ -53,11 +50,11 @@ if anchor in s and "zbt,we826-q)" not in s:
 else:
     print("02_network: anchor not found or already present")
 PYEOF
-}
+fi
 
-echo "[4/5] 追加 01_leds 分支"
+echo "[4/4] append 01_leds case"
 LEDS="$SRC/target/linux/ath79/generic/base-files/etc/board.d/01_leds"
-grep -q "zbt,we826-q)" "$LEDS" || {
+if ! grep -q "zbt,we826-q)" "$LEDS"; then
   python3 - "$LEDS" <<'PYEOF'
 import sys
 p = sys.argv[1]
@@ -76,10 +73,6 @@ if anchor in s and "zbt,we826-q)" not in s:
 else:
     print("01_leds: anchor not found or already present")
 PYEOF
-}
-
-echo "[5/5] 默认选中 we826q 包（如果存在）"
-[ -d "$SRC/package/feeds/modemfeed/we826q" ] && \
-  echo 'CONFIG_PACKAGE_we826q=y' >> "$SRC/.config"
+fi
 
 echo "device-add.sh done"

@@ -6,8 +6,17 @@ on:
     branches: [ main ]
 
 env:
+  # Primary source — fallback to local mirror if upstream gone
   REPO_URL: https://github.com/Y0518/immortalwrt
   REPO_BRANCH: openwrt-21.02
+  # Pinned commit (avoid following upstream HEAD = source disappearing risk)
+  REPO_COMMIT: 0f93ee65cf350bc1468c2f24317b1a80ea9f35da
+  # Local mirror (if present in repo) — used as fallback
+  REPO_MIRROR: immortalwrt-src.tar.zst
+  # Third-party feed (Y0518/modemfeed) — contains vendor we826q pkg
+  MODEMFEED_URL: https://github.com/Y0518/modemfeed.git
+  MODEMFEED_COMMIT: 609d43d
+  MODEMFEED_MIRROR: modemfeed.tar.zst
 
 jobs:
   build:
@@ -25,14 +34,37 @@ jobs:
 
       - name: Clone source
         run: |
-          git clone --depth 1 -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
+          # Prefer local mirror (immune to upstream disappearing)
+          if [ -f "${{ env.REPO_MIRROR }}" ]; then
+            echo "==> using local mirror ${{ env.REPO_MIRROR }}"
+            zstd -d "${{ env.REPO_MIRROR }}" --stdout | tar -xf - -C .
+            mv immortalwrt-openwrt-21.02 immortalwrt || mv immortalwrt immortalwrt
+          else
+            echo "==> cloning from upstream @ pinned commit ${{ env.REPO_COMMIT }}"
+            git clone --filter=blob:none --no-tags --depth 1 \
+              -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
+            cd immortalwrt
+            git fetch --depth 1 origin ${{ env.REPO_COMMIT }} --tags=no || true
+            git checkout ${{ env.REPO_COMMIT }} 2>/dev/null || true
+            cd ..
+          fi
+          # Fallback: if local mirror produced wrong branch, fetch pinned
+          if [ ! -f "immortalwrt/feeds.conf.default" ]; then
+            echo "==> local mirror unusable, retry upstream"
+            rm -rf immortalwrt
+            git clone --filter=blob:none --no-tags --depth 1 \
+              -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
+            cd immortalwrt && git checkout ${{ env.REPO_COMMIT }} 2>/dev/null || true
+          fi
 
       - name: Add zbt_we826-q device support
         run: |
           cp .config immortalwrt/.config
           bash patches/device-add.sh immortalwrt
-          # add Y0518/modemfeed (we826q private pkg + modeminfo/atinout/wwan/etc)
-          echo 'src-git modemfeed https://github.com/Y0518/modemfeed.git' >> immortalwrt/feeds.conf.default
+          # add Y0518/modemfeed feed pinned to commit (we826q private pkg etc.)
+          echo "src-git modemfeed ${{ env.MODEMFEED_URL }}^${{ env.MODEMFEED_COMMIT }}" \
+            >> immortalwrt/feeds.conf.default
+          cat immortalwrt/feeds.conf.default
 
       - name: Update & install feeds
         run: |
