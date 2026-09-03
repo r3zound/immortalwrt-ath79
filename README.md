@@ -2,7 +2,7 @@
 
 ## 背景
 
-设备是 **ZBT WE826-Q**（QCA9531 + AR8229 switch，16M Flash + 128M RAM，1WAN+4LAN+USB+TF+miniPCIe+SIM），4G 模块 **Quectel EC200T**。
+设备是 **ZBT WE826-Q**（QCA9531 + AR8229 switch，16M Flash + 128M RAM，**1WAN+1LAN** +USB+TF+miniPCIe+SIM，实物为 1WAN+1LAN 变体），4G 模块 **Quectel EC200T**。
 
 官方 ImmortalWrt / OpenWrt 都**没有 `zbt_we826-q` 设备**（同门的 `zbtlink_zbt-wd323` 是 ar9344，硬件不匹配）。本工程基于从设备 `/sys/firmware/fdt` 提取的真实 DTB 逆向移植该设备支持。
 
@@ -21,7 +21,7 @@ patches/device-add.sh             # 把 dts + generic.mk + board.d 应用进源�
 |---|---|
 | SoC | QCA9531（内核识别 QCA9533） |
 | 分区 | u-boot(0x0,128K) + firmware(0x20000, tplink LZMA) + art(0xff0000,64K) |
-| 网口 | eth0=GMII+AR8229 switch(4×LAN), eth1=MII+phy4(1×WAN) |
+| 网口 | eth0=GMII+AR8229 switch(1×LAN, port1), eth1=MII+phy4(1×WAN) |
 | LED(blue,低有效) | wifi=gpio12, wan=gpio4, lan1=16, lan2=15, lan3=14, lan4=11 |
 | Reset | gpio17 |
 | MAC | art 0x0 = c8:ee:a6:bb:cc:23(WAN) / :24(LAN) |

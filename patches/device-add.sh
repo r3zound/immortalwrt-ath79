@@ -41,7 +41,7 @@ anchor = "glinet,gl-x300b)"
 add = '''\tzbt,we826-q)
 \t\tucidef_set_interface_wan "eth1"
 \t\tucidef_add_switch "switch0" \\
-\t\t\t"0@eth0" "1:lan:1" "2:lan:2" "3:lan:3" "4:lan:4"
+\t\t\t"0@eth0" "1:lan"
 \t\t;;
 '''
 if anchor in s and "zbt,we826-q)" not in s:
@@ -62,10 +62,7 @@ p = sys.argv[1]
 s = open(p).read()
 anchor = "glinet,gl-x300b)"
 add = '''\tzbt,we826-q)
-\t\tucidef_set_led_switch "lan1" "LAN1" "blue:lan1" "switch0" "0x02"
-\t\tucidef_set_led_switch "lan2" "LAN2" "blue:lan2" "switch0" "0x04"
-\t\tucidef_set_led_switch "lan3" "LAN3" "blue:lan3" "switch0" "0x08"
-\t\tucidef_set_led_switch "lan4" "LAN4" "blue:lan4" "switch0" "0x10"
+\t\tucidef_set_led_switch "lan" "LAN" "blue:lan1" "switch0" "0x02"
 \t\tucidef_set_led_netdev "wan" "WAN" "blue:wan" "eth1"
 \t\tucidef_set_led_wlan "wlan" "WLAN" "blue:wifi" "phy0tpt"
 \t\t;;
