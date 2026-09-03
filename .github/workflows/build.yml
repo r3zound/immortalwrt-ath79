@@ -61,9 +61,11 @@ jobs:
         run: |
           cp .config immortalwrt/.config
           bash patches/device-add.sh immortalwrt
-          # add Y0518/modemfeed feed pinned to commit (we826q private pkg etc.)
-          echo "src-git modemfeed ${{ env.MODEMFEED_URL }}^${{ env.MODEMFEED_COMMIT }}" \
-            >> immortalwrt/feeds.conf.default
+          # Y0518 source already ships a modemfeed line in feeds.conf.default;
+          # REPLACE it with a pinned one instead of appending (duplicate feed -> exit 25).
+          sed -i "s|^src-git modemfeed .*|src-git modemfeed ${{ env.MODEMFEED_URL }}^${{ env.MODEMFEED_COMMIT }}|" \
+            immortalwrt/feeds.conf.default
+          echo "--- feeds.conf.default ---"
           cat immortalwrt/feeds.conf.default
 
       - name: Update & install feeds
