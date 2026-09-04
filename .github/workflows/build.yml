@@ -1,4 +1,4 @@
-name: Build ImmortalWrt (ZBT WE826-Q)
+name: Build ImmortalWrt (EdgeLink EL-953)
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ env:
   REPO_COMMIT: 0f93ee65cf350bc1468c2f24317b1a80ea9f35da
   # Local mirror (if present in repo) — used as fallback
   REPO_MIRROR: immortalwrt-src.tar.zst
-  # Third-party feed (Y0518/modemfeed) — contains vendor we826q pkg
+  # Third-party feed (Y0518/modemfeed) — vendor 4G support packages
   MODEMFEED_URL: https://github.com/Y0518/modemfeed.git
   MODEMFEED_COMMIT: 609d43d
   MODEMFEED_MIRROR: modemfeed.tar.zst
@@ -57,7 +57,7 @@ jobs:
             cd immortalwrt && git checkout ${{ env.REPO_COMMIT }} 2>/dev/null || true
           fi
 
-      - name: Add zbt_we826-q device support
+      - name: Add edgelink_el-953 device support
         run: |
           cp .config immortalwrt/.config
           bash patches/device-add.sh immortalwrt
@@ -100,7 +100,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-zbt-we826-q
+          name: immortalwrt-edgelink-el-953
           path: artifacts/
           if-no-files-found: warn
           retention-days: 14
