@@ -4,6 +4,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	compatible = "edgelink,el-953", "qca,qca9531";
@@ -30,35 +31,35 @@
 	leds {
 		compatible = "gpio-leds";
 
-		wifi {
-			label = "blue:wifi";
-			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
-		};
-
-		wan {
-			label = "blue:wan";
+		/* 黄色：LAN 物理端口连接状态（网线接入亮、断开灭） */
+		edgelink_lan_link: lan_link {
+			label = "yellow:lan-link";
 			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
+			color = <LED_COLOR_ID_YELLOW>;
 		};
 
-		lan1 {
-			label = "blue:lan1";
-			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
-		};
-
-		lan2 {
-			label = "blue:lan2";
+		/* 绿色：4G/WAN 联网状态（外网不通=快闪，通=长亮） */
+		edgelink_4g: fourg_status {
+			label = "green:4g-status";
 			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
+			color = <LED_COLOR_ID_GREEN>;
 		};
 
-		lan3 {
-			label = "blue:lan3";
+		/* 黄色：SIM 卡状态（在槽=灭，弹出=闪烁提醒） */
+		edgelink_sim: sim_status {
+			label = "yellow:sim";
 			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+			color = <LED_COLOR_ID_YELLOW>;
 		};
 
-		lan4 {
-			label = "blue:lan4";
-			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+		/* 红色：WiFi 状态（无线开=亮，关=灭） */
+		edgelink_wifi: wifi_status {
+			label = "red:wifi";
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+			color = <LED_COLOR_ID_RED>;
 		};
+
+		/* GPIO 11 / GPIO 16 板上未接 LED，按实际空置 */
 	};
 };
 

@@ -67,8 +67,8 @@
 | SoC | QCA9531（内核识别 QCA9533） |
 | 分区 | u-boot(0x0,128K) + firmware(0x20000, tplink LZMA) + art(0xff0000,64K) |
 | 网口 | eth0=GMII+AR8229 switch(1×LAN port1), eth1=MII+phy4(1×WAN) |
-| LED(blue,低有效) | wifi=gpio12, wan=gpio4, lan=gpio16 |
 | Reset | gpio17 |
+| **LED（板上 4 颗）** | **黄 LAN 灯**=gpio4（网线 link 状态）<br>**绿 4G 灯**=gpio15（4G 联网状态）<br>**黄 SIM 灯**=gpio14（SIM 卡在/出）<br>**红 WiFi 灯**=gpio12（WiFi 开/关）<br>**蓝电源灯**=硬件直驱通电亮（不可控） |
 | MAC | art 0x0 = c8:ee:a6:bb:cc:23(WAN) / :24(LAN) |
 | 4G | Quectel EC200T (2c7c:6026, ECM)；4G 供电 GPIO2 (高) |
 
