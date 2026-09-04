@@ -1,22 +1,19 @@
 name: Build ImmortalWrt (EdgeLink EL-953)
 
+# 仓库已 vendor：主源码在仓库根，feeds 在 feeds-src/*，feeds.conf 用 src-link
+# 这里只跑构建 + 收固件，不再 clone 任何外部仓库。
+# 第一次需要先跑 .github/workflows/vendor.yml 生成 vendor 产物。
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - '.github/workflows/vendor.yml'
 
-env:
-  # Primary source — fallback to local mirror if upstream gone
-  REPO_URL: https://github.com/Y0518/immortalwrt
-  REPO_BRANCH: openwrt-21.02
-  # Pinned commit (avoid following upstream HEAD = source disappearing risk)
-  REPO_COMMIT: 0f93ee65cf350bc1468c2f24317b1a80ea9f35da
-  # Local mirror (if present in repo) — used as fallback
-  REPO_MIRROR: immortalwrt-src.tar.zst
-  # Third-party feed (Y0518/modemfeed) — vendor 4G support packages
-  MODEMFEED_URL: https://github.com/Y0518/modemfeed.git
-  MODEMFEED_COMMIT: 609d43d
-  MODEMFEED_MIRROR: modemfeed.tar.zst
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -24,77 +21,54 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false  # 不需要 submodule，所有源码已 vendor 进仓库
+
+      - name: Sanity: feeds.conf uses src-link
+        run: |
+          echo "=== feeds.conf ==="
+          cat feeds.conf
+          echo
+          echo "=== feeds-src/ ==="
+          ls -la feeds-src/
 
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-            gettext git libncurses5-dev libssl-dev python3 python3-setuptools rsync swig unzip zlib1g-dev \
-            file wget libelf-dev python3-distutils quilt cpio xxd
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+            python3 python3-setuptools rsync swig unzip zlib1g-dev file wget \
+            libelf-dev python3-distutils quilt cpio xxd
 
-      - name: Clone source
+      - name: Update & install feeds (src-link, no network)
         run: |
-          # Prefer local mirror (immune to upstream disappearing)
-          if [ -f "${{ env.REPO_MIRROR }}" ]; then
-            echo "==> using local mirror ${{ env.REPO_MIRROR }}"
-            zstd -d "${{ env.REPO_MIRROR }}" --stdout | tar -xf - -C .
-            mv immortalwrt-openwrt-21.02 immortalwrt || mv immortalwrt immortalwrt
-          else
-            echo "==> cloning from upstream @ pinned commit ${{ env.REPO_COMMIT }}"
-            git clone --filter=blob:none --no-tags --depth 1 \
-              -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
-            cd immortalwrt
-            git fetch --depth 1 origin ${{ env.REPO_COMMIT }} --tags=no || true
-            git checkout ${{ env.REPO_COMMIT }} 2>/dev/null || true
-            cd ..
-          fi
-          # Fallback: if local mirror produced wrong branch, fetch pinned
-          if [ ! -f "immortalwrt/feeds.conf.default" ]; then
-            echo "==> local mirror unusable, retry upstream"
-            rm -rf immortalwrt
-            git clone --filter=blob:none --no-tags --depth 1 \
-              -b ${{ env.REPO_BRANCH }} ${{ env.REPO_URL }} immortalwrt
-            cd immortalwrt && git checkout ${{ env.REPO_COMMIT }} 2>/dev/null || true
-          fi
-
-      - name: Add edgelink_el-953 device support
-        run: |
-          cp .config immortalwrt/.config
-          bash patches/device-add.sh immortalwrt
-          # Y0518 source already ships a modemfeed line in feeds.conf.default;
-          # REPLACE it with a pinned one instead of appending (duplicate feed -> exit 25).
-          sed -i "s|^src-git modemfeed .*|src-git modemfeed ${{ env.MODEMFEED_URL }}^${{ env.MODEMFEED_COMMIT }}|" \
-            immortalwrt/feeds.conf.default
-          echo "--- feeds.conf.default ---"
-          cat immortalwrt/feeds.conf.default
-
-      - name: Update & install feeds
-        run: |
-          cd immortalwrt
-          ./scripts/feeds update -a
+          # src-link feeds 直接做 link，不需要 update
+          ./scripts/feeds update -i
           ./scripts/feeds install -a
 
-      - name: Configure
+      - name: Place .config & apply device support
         run: |
-          cd immortalwrt
+          # device-add.sh 在 vendor 阶段已 baked 进源码树，
+          # 这里只 .config 落位 + 触发一次 defconfig
+          cp -n .config .config.built || true
           make defconfig
 
       - name: Download packages
         run: |
-          cd immortalwrt
           make download -j$(nproc) || true
 
       - name: Build firmware
         run: |
-          cd immortalwrt
           make -j$(nproc) V=s
 
       - name: Collect artifacts
         if: always()
         run: |
           mkdir -p artifacts
-          find immortalwrt/bin/targets -type f \( -name "*.bin" -o -name "*.manifest" \) -print0 | xargs -0 -I{} cp {} artifacts/
-          ls -la artifacts/
+          find bin/targets -type f \( -name "*.bin" -o -name "*.manifest" \) -print0 \
+            | xargs -0 -I{} cp {} artifacts/ 2>/dev/null || true
+          ls -la artifacts/ 2>/dev/null || echo "no artifacts"
 
       - name: Upload artifacts
         if: always()

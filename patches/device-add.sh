@@ -75,18 +75,32 @@ else:
 PYEOF
 fi
 
-echo "[5/5] add uci-defaults for 4G WAN (usb0 dhcp)"
+echo "[5/5] add uci-defaults for 4G WAN (usb0 static)"
 UCI="$SRC/target/linux/ath79/generic/base-files/etc/uci-defaults"
 mkdir -p "$UCI"
 cat > "$UCI/99-edgelink-4g" <<'EOF'
 #!/bin/sh
-# EdgeLink EL-953: default WAN over 4G ECM (usb0 dhcp), drop bogus qmi/ncm
+# EdgeLink EL-953: default WAN over 4G ECM (usb0 static), drop bogus qmi/ncm
 [ -e /etc/config/network ] || exit 0
-uci set network.wan.proto='dhcp'
+uci set network.wan.proto='static'
 uci set network.wan.device='usb0'
+uci set network.wan.ipaddr='192.168.43.100'
+uci set network.wan.netmask='255.255.255.0'
+uci set network.wan.gateway='192.168.43.1'
+uci set network.wan.metric='10'
 uci -q delete network.wan6
 uci -q delete network.wwan
 uci commit network
+# Static upstream DNS (ECM module does not provide DNS)
+uci -q delete dhcp.@dnsmasq[0].server
+uci add_list dhcp.@dnsmasq[0].server='223.5.5.5'
+uci add_list dhcp.@dnsmasq[0].server='119.29.29.29'
+uci commit dhcp
+# frpc: 服务器信息留空（删掉默认占位 server_addr 与示例代理）
+if [ -f /etc/config/frpc ]; then
+  while uci -q delete frpc.@conf[0]; do :; done
+  uci commit frpc
+fi
 exit 0
 EOF
 chmod +x "$UCI/99-edgelink-4g"

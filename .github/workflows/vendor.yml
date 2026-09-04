@@ -1,0 +1,53 @@
+name: Vendor (cloud)
+
+# 一键把主源码 + 5 个 feeds 全 vendor 进仓库根，
+# 后续用 src-link 本地引用，CI 不再 clone 外部。
+# 用法：Actions → Vendor (cloud) → Run workflow。
+# 跑完会自提交到 main。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ vendor-bootstrap ]
+    paths: [ '.github/workflows/vendor.yml' ]
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          # GITHUB_TOKEN 自带 push 权限
+
+      - name: Vendor sources
+        env:
+          MAIN_REPO: https://github.com/Y0518/immortalwrt.git
+          MAIN_REF:  0f93ee65cf350bc1468c2f24317b1a80ea9f35da
+          PKG_REPO:  https://github.com/immortalwrt/packages.git
+          PKG_REF:   e09f3c7d1903cfe7f523e209ab3ec778013ba309
+          LUCI_REPO: https://github.com/immortalwrt/luci.git
+          LUCI_REF:  5829eabba50ec0afa17d2ee486bc90dc15180c34
+          RT_REPO:   https://github.com/openwrt/routing.git
+          RT_REF:    a9e43101bb726070cbf81b6225fc0625f4a4a5e5
+          TEL_REPO:  https://github.com/openwrt/telephony.git
+          TEL_REF:   920fbc5c0a2e4badf51bceff42e9a1e3eb693462
+          MF_REPO:   https://github.com/Y0518/modemfeed.git
+          MF_REF:    609d43d
+        run: bash scripts/vendor.sh
+
+      - name: Commit & push
+        run: |
+          git config user.name "r3zound-bot"
+          git config user.email "bot@r3zound.local"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "vendor: main+5feeds @ $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push origin HEAD:main
+          else
+            echo "nothing to commit"
+          fi

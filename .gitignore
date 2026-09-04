@@ -2,3 +2,14 @@
 immortalwrt-*.zip
 immortalwrt-*/
 *.zst
+
+# OpenWrt 构建产物（vendor 后由 build.yml 在 Actions 里产生，不入库）
+/bin/
+/build_dir/
+/staging_dir/
+/tmp/
+/dl/
+/logs/
+/ccache/
+/.config.built
+
