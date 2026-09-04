@@ -1,8 +1,7 @@
 name: Vendor (cloud)
 
-# 一键把主源码 + 5 个 feeds 全 vendor 进仓库根，
-# 后续用 src-link 本地引用，CI 不再 clone 外部。
-# 用法：Actions → Vendor (cloud) → Run workflow。
+# 一键把主源码 + 5 个 feeds 全 vendor 进仓库根。
+# 首次或升级依赖时用：Actions → Run workflow。
 # 跑完会自提交到 main。
 
 on:
@@ -22,9 +21,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          # GITHUB_TOKEN 自带 push 权限
 
-      - name: Vendor sources
+      - name: Vendor sources (inline script)
         env:
           MAIN_REPO: https://github.com/Y0518/immortalwrt.git
           MAIN_REF:  0f93ee65cf350bc1468c2f24317b1a80ea9f35da
@@ -38,9 +36,20 @@ jobs:
           TEL_REF:   920fbc5c0a2e4badf51bceff42e9a1e3eb693462
           MF_REPO:   https://github.com/Y0518/modemfeed.git
           MF_REF:    609d43d
-        run: bash scripts/vendor.sh
+        run: bash .github/workflows/vendor-script.sh
 
-      - name: Commit & push
+      - name: Copy inline script to scripts/ for next time
+        run: |
+          mkdir -p scripts
+          cp .github/workflows/vendor-script.sh scripts/vendor.sh
+          chmod +x scripts/vendor.sh
+          git add scripts/vendor.sh
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: sync scripts/vendor.sh from inline"
+            git push origin HEAD:main
+          fi
+
+      - name: Commit & push vendor output
         run: |
           git config user.name "r3zound-bot"
           git config user.email "bot@r3zound.local"
