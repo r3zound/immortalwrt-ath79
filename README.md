@@ -1,80 +1,92 @@
-# ImmortalWrt — EdgeLink EL-953 4G Router (QCA9531) 自包含构建工程
+# ImmortalWrt — EdgeLink EL-953 4G Router (QCA9531) Self-contained Build
 
-## 背景
+## Hardware
 
-**EdgeLink EL-953** 是边缘联网 4G 路由器（品牌 EdgeLink 边联，型号 EL-953），硬件为 QCA9531 + AR8229 switch，16M Flash + 128M RAM，**1WAN+1LAN** + USB + TF + miniPCIe + SIM，4G 模块 **Quectel EC200T**。
+| Category | Item | Value |
+|---|---|---|
+| Form | Device type | **Industrial 4G module** (not a consumer router) |
+| SoC | Chip / kernel name | QCA9531 (kernel reports QCA9533) |
+| Memory | Flash / RAM | 16 MB SPI NOR / 128 MB DDR2 |
+| Network | Wired | 1WAN (eth1, MII + phy4) + 1LAN (eth0, GMII + AR8229 switch) |
+| Cellular | 4G module / USB ID | Quectel EC200T (CN firmware) — USB `2c7c:6026` (CDC-ECM) |
+| SIM | Slot | 1x standard SIM (inserted = LED off / ejected = LED blink) |
+| Expansion | USB / TF / miniPCIe | **None** (not wired on PCB) |
+| Wireless | WiFi | 2.4 GHz b/g/n (ath9k-phy0) |
+| Boot | Bootloader | Breed (full.bin programmer backup saved) |
+| Flash | u-boot / firmware / art | 0x000000 (128K) / 0x020000 (tplink LZMA) / 0xff0000 (64K) |
+| MAC | art 0x0 | WAN `c8:ee:a6:bb:cc:23` / LAN `:24` / WiFi `c2:ee:a6:0c:38:07` |
+| Reset | Button | GPIO 17 (ACTIVE LOW, 60ms debounce) |
+| LEDs (4 controllable, ACTIVE LOW) | yellow LAN link = gpio4 · green 4G status = gpio15 · yellow SIM status = gpio14 · red WiFi status = gpio12 · blue power = hardware-driven, not controllable |
 
-**本仓库已完全自包含**：主源码（Y0518/immortalwrt fork）+ 5 个 feeds（packages/luci/routing/telephony + Y0518/modemfeed）已 vendor 进仓库，build.yml 不再 clone 任何外部仓库，feeds 用 `src-link` 本地引用。
+## Build System Versions
 
-## 仓库结构（vendor 后）
+| Component | Source / Version | Commit / Note |
+|---|---|---|
+| OpenWrt base | Y0518/immortalwrt | `0f93ee65` (openwrt-21.02 branch) |
+| Kernel | Linux | 5.4.266 |
+| Userland | OpenWrt | 21.02-SNAPSHOT |
+| Target | ath79 / generic | `ath79_generic_DEVICE_edgelink_el-953` |
+| LuCI | immortalwrt/luci | `5829eabb` (openwrt-21.02) |
+| Packages | immortalwrt/packages | `e09f3c7d` (openwrt-21.02) |
+| Routing | openwrt/routing | `a9e43101` (openwrt-21.02) |
+| Telephony | openwrt/telephony | `920fbc5c` (openwrt-21.02) |
+| 4G extras | Y0518/modemfeed | `609d43d` (modeminfo/atinout/qtools/mmconfig/frpc/speedtestpp) |
+| Board name (runtime) | OpenWrt board | `edgelink,el-953` (exposed as "EdgeLink EL-953 4G Router") |
+
+## Repository Layout (after vendor)
 
 ```
-<仓库根>
-├── Makefile, scripts/, target/, package/        ← immortalwrt 主源码（vendor 平铺）
-├── feeds-src/                                   ← 5 个 feed 本地副本
+<root>
+├── Makefile, scripts/, target/, package/        <- immortalwrt main source (flattened by vendor)
+├── feeds-src/                                   <- 5 feeds as local copies
 │   ├── packages/  luci/  routing/  telephony/  modemfeed/
-├── feeds.conf                                   ← src-link feeds-src/*（本地引用）
-├── .config                                      ← 构建配置
+├── feeds.conf                                   <- src-link feeds-src/* (local reference)
+├── .config                                      <- build config (incl. speedtestpp + luci-app-speedtestpp)
 ├── .github/workflows/
-│   ├── build.yml                                 ← 构建固件（不动外部）
-│   └── vendor.yml                                ← 一键重新 vendor（首次或升级时）
-├── patches/                                     ← 设备 dts（vendor 阶段 baked 进源码）
+│   ├── build.yml                                <- build firmware (no network calls)
+│   └── vendor.yml                               <- one-click re-vendor
+├── patches/                                     <- device dts (baked into source by vendor)
 └── README.md
 ```
 
-## vendor 版本锁定
+**Fully self-contained**: CI never clones any external repository; feeds are referenced via `src-link`.
 
-| 源 | commit | 用途 |
-|---|---|---|
-| Y0518/immortalwrt | `0f93ee65` | 主源码 |
-| immortalwrt/packages | `e09f3c7d` | luci/argon/frpc/... |
-| immortalwrt/luci | `5829eabb` | LuCI 框架 |
-| openwrt/routing | `a9e43101` | mwan3 / relayd |
-| openwrt/telephony | `920fbc5c` | asterisk 等 |
-| Y0518/modemfeed | `609d43d` | luci-app-modeminfo/atinout/mmconfig/qtools |
+## Usage
 
-## 使用
+### Re-vendor (first time or upgrading dependencies)
 
-### 重新 vendor（首次或升级依赖时）
+1. GitHub web -> **Actions** -> **Vendor (cloud)** -> **Run workflow** -> Run
+2. The workflow clones 6 repos -> merges -> applies edgelink changes -> commits & pushes to main
+3. To bump versions, edit the commit constants at the top of `.github/workflows/vendor.yml` and re-run
 
-1. GitHub 网页 → **Actions** → **Vendor (cloud)** → **Run workflow** → Run
-2. 等几分钟，workflow 会自动 clone 6 仓库、合并、应用 edgelink 改动、commit & push 到 main
+### Build V4 firmware
 
-### 构建 V4 固件
+1. **Actions** -> **Build EdgeLink EL-953** -> **Run workflow** -> Run
+2. About 1 hour; artifact `immortalwrt-edgelink-el-953` is uploaded automatically
+3. Extract `*-edgelink_el-953-squashfs-sysupgrade.bin` and flash via Breed
 
-1. **Actions** → **Build ImmortalWrt (EdgeLink EL-953)** → **Run workflow** → Run
-2. 约 1 小时，产物 `immortalwrt-edgelink-el-953` 自动上传
-3. 解压取 `*-edgelink_el-953-squashfs-sysupgrade.bin`，通过 Breed 刷入
+## 4G Notes
 
-## 4G 说明
+- **Module**: EC200T (CN firmware) USB=`2c7c:6026` **ECM routed mode** (no QMI). The module auto-registers and activates PDP on power-up (China Unicom `3gnet`, China Telecom `ctnet`, China Mobile `cmnet` decided by module/SIM).
+- **Network attach**: Default WAN is `usb0` with `static(192.168.43.100, gw .1, metric 10)` (dhcp is unreliable since module does not lease); dnsmasq uses static upstream DNS `223.5.5.5 / 119.29.29.29`. Wired WAN (eth1) is disabled by default; create a new interface in LuCI to use it.
+- **Pre-installed packages**:
+  - `luci-app-modeminfo` (signal / carrier / parameters panel)
+  - `luci-app-atinout` (AT command tool)
+  - `luci-app-mmconfig` (band lock)
+  - `qtools` / `modeminfo` with Quectel submodule
+  - `luci-app-frpc` (server info **left blank**; plugin installed, not pre-configured)
+  - `luci-app-speedtestpp` (self-written; runs `speedtestpp` CLI for speedtest.net)
 
-- EC200T（CN 固件）USB=`2c7c:6026` **ECM 模式，无 QMI**；模块上电后自动注网并激活 PDP（联通 `3gnet`，电信 `ctnet`，移动 `cmnet` 由模块侧按卡决定）。
-- 固件默认 **WAN = `usb0` + `static(192.168.43.100, gw .1, metric 10)`**（dhcp 不可靠，模块不下发租约），开机自动拉起；dnsmasq 静态上游 DNS `223.5.5.5/119.29.29.29`。
-- 已内置 `luci-app-modeminfo`（信号/运营商/参数面板）与 `luci-app-atinout`（AT 指令交互）界面。
-- 有线 WAN 口（eth1）默认未启用；如需有线接入，在 LuCI 里手动新建接口即可。
+## Device Identity
 
-## 设备身份
+- **Public**: EdgeLink EL-953 4G Router (brand EdgeLink, model EL-953)
+- **Board definition**: `Device/edgelink_el-953` in `target/linux/ath79/image/generic.mk`
+- **DTS**: `target/linux/ath79/dts/qca9531_edgelink_el-953.dts`
+- **Compiled board name**: `edgelink,el-953` (shown in LuCI / SSH / logs)
 
-- 对外：**EdgeLink EL-953 4G Router**（品牌 EdgeLink 边联，型号 EL-953）
-- 板型定义：`Device/edgelink_el-953`（`target/linux/ath79/image/generic.mk`）
-- DTS：`target/linux/ath79/dts/qca9531_edgelink_el-953.dts`
-- 编译产物的 board 名称：`edgelink,el-953`（LuCI/SSH/日志均显示此身份）
+## Flashing
 
-## 硬件逆向结果
-
-| 项 | 值 |
-|---|---|
-| SoC | QCA9531（内核识别 QCA9533） |
-| 分区 | u-boot(0x0,128K) + firmware(0x20000, tplink LZMA) + art(0xff0000,64K) |
-| 网口 | eth0=GMII+AR8229 switch(1×LAN port1), eth1=MII+phy4(1×WAN) |
-| Reset | gpio17 |
-| **LED（板上 4 颗）** | **黄 LAN 灯**=gpio4（网线 link 状态）<br>**绿 4G 灯**=gpio15（4G 联网状态）<br>**黄 SIM 灯**=gpio14（SIM 卡在/出）<br>**红 WiFi 灯**=gpio12（WiFi 开/关）<br>**蓝电源灯**=硬件直驱通电亮（不可控） |
-| MAC | art 0x0 = c8:ee:a6:bb:cc:23(WAN) / :24(LAN) |
-| 4G | Quectel EC200T (2c7c:6026, ECM)；4G 供电 GPIO2 (高) |
-
-## 刷机
-
-通过 Breed（已备份编程器固件 full.bin）：
-1. 拔电 → 按住 Reset → 上电 → 浏览器进 192.168.1.1
-2. 选 `*-edgelink_el-953-squashfs-sysupgrade.bin` 刷入
-3. 出问题回滚：Breed 恢复 full.bin 即可
+Via Breed (full.bin programmer backup already saved):
+1. Power off -> hold Reset -> power on -> browse 192.168.1.1
+2. Choose `*-edgelink_el-953-squashfs-sysupgrade.bin` and flash
+3. Rollback if needed: restore full.bin from Breed
