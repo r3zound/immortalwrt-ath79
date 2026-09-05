@@ -1,0 +1,15 @@
+{
+	"luci-app-speedtestpp": {
+		"description": "Grant access to Speedtest procedures",
+		"read": {
+			"ubus": {
+				"luci.speedtestpp": [ "status" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"luci.speedtestpp": [ "start", "stop" ]
+			}
+		}
+	}
+}
