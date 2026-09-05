@@ -178,6 +178,27 @@ EOF
 echo ">>> rsync stage -> workspace"
 rsync -a --delete --exclude='.git' "$STAGE/root/" "$WS/"
 
+# 9. 删除主源码的 .gitignore（它会阻止 feeds/feeds.conf/target/Makefile 被 git add）
+echo ">>> remove upstream .gitignore, restore ours"
+rm -f "$WS/.gitignore"
+cat > "$WS/.gitignore" <<'GITIGNORE_EOF'
+# 本地构建产物
+immortalwrt-*.zip
+immortalwrt-*/
+*.zst
+
+# OpenWrt 构建产物（vendor 后由 build.yml 在 Actions 里产生，不入库）
+/bin/
+/build_dir/
+/staging_dir/
+/tmp/
+/dl/
+/logs/
+/ccache/
+/.config.built
+GITIGNORE_EOF
+
+
 echo ">>> done"
 ls -la "$WS" | head -30
 echo "=== feeds-src ==="
