@@ -2303,12 +2303,11 @@ endef
 TARGET_DEVICES += zyxel_nbg6616
 
 define Device/edgelink_el-953
-  $(Device/tplink-16mlzma)
   SOC := qca9531
   DEVICE_VENDOR := EdgeLink
   DEVICE_MODEL := EL-953
-  IMAGE_SIZE := 16000k
-  DEVICE_PACKAGES := kmod-usb2
-  SUPPORTED_DEVICES += edgelink-el-953
+  DEVICE_PACKAGES := kmod-usb2 kmod-usb-net-cdc-ether kmod-usb-serial \
+    kmod-usb-serial-option kmod-usb-serial-wwan kmod-usb-acm
+  IMAGE_SIZE := 15872k
 endef
 TARGET_DEVICES += edgelink_el-953
