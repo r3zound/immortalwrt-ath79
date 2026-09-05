@@ -1,5 +1,5 @@
-src-git-full packages https://github.com/immortalwrt/packages.git;openwrt-21.02
-src-git-full luci https://github.com/immortalwrt/luci.git;openwrt-21.02
-src-git-full routing https://github.com/openwrt/routing.git;openwrt-21.02
-src-git-full telephony https://github.com/openwrt/telephony.git;openwrt-21.02
-src-git modemfeed https://github.com/Y0518/modemfeed.git
+src-link packages ../feeds-src/packages
+src-link luci ../feeds-src/luci
+src-link routing ../feeds-src/routing
+src-link telephony ../feeds-src/telephony
+src-link modemfeed ../feeds-src/modemfeed
