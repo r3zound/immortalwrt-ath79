@@ -34,7 +34,7 @@ jobs:
 
       - name: Update feeds
         run: |
-          ./scripts/feeds update -i
+          ./scripts/feeds update -a
           ./scripts/feeds install -a
 
       - name: Configure
