@@ -1,4 +1,4 @@
-﻿# 本地构建产物（不提交到仓库）
+# 本地构建产物
 immortalwrt-*.zip
 immortalwrt-*/
 *.zst
@@ -12,4 +12,3 @@ immortalwrt-*/
 /logs/
 /ccache/
 /.config.built
-

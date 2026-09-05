@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include "qca953x.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	compatible = "edgelink,el-953", "qca,qca9531";
+	model = "EdgeLink EL-953";
+
+	aliases {
+		label-mac-device = &eth1;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&jtag_disable_pins>;
+
+		reset {
+			label = "reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
+			debounce-interval = <60>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		/* 黄色：LAN 物理端口连接状态（网线接入亮、断开灭） */
+		edgelink_lan_link: lan_link {
+			label = "yellow:lan-link";
+			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
+		};
+
+		/* 绿色：4G/WAN 联网状态（外网不通=快闪，通=长亮） */
+		edgelink_4g: fourg_status {
+			label = "green:4g-status";
+			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
+		};
+
+		/* 黄色：SIM 卡状态（在槽=灭，弹出=闪烁提醒） */
+		edgelink_sim: sim_status {
+			label = "yellow:sim";
+			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+		};
+
+		/* 红色：WiFi 状态（无线开=亮，关=灭） */
+		edgelink_wifi: wifi_status {
+			label = "red:wifi";
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		/* GPIO 11 / GPIO 16 板上未接 LED，按实际空置 */
+	};
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&spi {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <25000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x000000 0x020000>;
+				read-only;
+			};
+
+			partition@20000 {
+				compatible = "tplink,firmware";
+				label = "firmware";
+				reg = <0x020000 0xfd0000>;
+			};
+
+			art: partition@ff0000 {
+				label = "art";
+				reg = <0xff0000 0x010000>;
+				read-only;
+			};
+		};
+	};
+};
+
+&eth0 {
+	status = "okay";
+
+	nvmem-cells = <&macaddr_art_0>;
+	nvmem-cell-names = "mac-address";
+
+	phy-handle = <&swphy4>;
+};
+
+&eth1 {
+	nvmem-cells = <&macaddr_art_0>;
+	nvmem-cell-names = "mac-address";
+	mac-address-increment = <1>;
+};
+
+&wmac {
+	status = "okay";
+
+	mtd-cal-data = <&art 0x1000>;
+};
+
+&art {
+	compatible = "nvmem-cells";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	macaddr_art_0: macaddr@0 {
+		reg = <0x0 0x6>;
+	};
+};

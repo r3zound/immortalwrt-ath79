@@ -1,0 +1,23 @@
+#!/bin/sh
+# EdgeLink EL-953: default WAN over 4G ECM (usb0 static), drop bogus qmi/ncm
+[ -e /etc/config/network ] || exit 0
+uci set network.wan.proto='static'
+uci set network.wan.device='usb0'
+uci set network.wan.ipaddr='192.168.43.100'
+uci set network.wan.netmask='255.255.255.0'
+uci set network.wan.gateway='192.168.43.1'
+uci set network.wan.metric='10'
+uci -q delete network.wan6
+uci -q delete network.wwan
+uci commit network
+# Static upstream DNS (ECM module does not provide DNS)
+uci -q delete dhcp.@dnsmasq[0].server
+uci add_list dhcp.@dnsmasq[0].server='223.5.5.5'
+uci add_list dhcp.@dnsmasq[0].server='119.29.29.29'
+uci commit dhcp
+# frpc: 服务器信息留空（删掉默认占位）
+if [ -f /etc/config/frpc ]; then
+  while uci -q delete frpc.@conf[0]; do :; done
+  uci commit frpc
+fi
+exit 0
