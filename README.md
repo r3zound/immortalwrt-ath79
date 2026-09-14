@@ -1,3 +1,17 @@
+# ⚠️ ARCHIVED — superseded by [r3zound/OpenWRT-25.12-QCA953X](https://github.com/r3zound/OpenWRT-25.12-QCA953X)
+
+This 21.02 self-contained build is no longer maintained. The 25.12 overlay
+(separate repo) is now the source of truth for the EdgeLink EL-953 (QCA9531)
+4G router firmware. It carries forward:
+
+- the proven `.config` package selection (modeminfo/atinout/cdc_ether/USB-serial stack)
+- the hardware reference table (this README)
+- the modemfeed feed pin (`Y0518/modemfeed^609d43d`)
+
+New work happens there. This repo is kept for historical reference only.
+
+---
+
 # ImmortalWrt — EdgeLink EL-953 4G Router (QCA9531) Self-contained Build
 
 ## Hardware
