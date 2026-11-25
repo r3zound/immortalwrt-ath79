@@ -30,6 +30,13 @@
 5. 校验镜像头、分区预算与 sha256；
 6. 上传 artifact（可选创建草稿 Release）。
 
+> **runner 必须有 root**：基线 rootfs 里有 `/dev/console` 这个字符设备节点，
+> `unsquashfs` 在非 root 用户下会报
+> `create_inode: could not create character device ... because you're not superuser`
+> 并以退出码 2 失败。脚本检测到非 root 时会用 `sudo` 重新执行自身，
+> 结束后再把产物 `chown` 回原调用者。Windows 本机没有 sudo，跳过提权，
+> 此时 `/dev/console` 会缺失（运行时由 devtmpfs 补齐）。
+
 ## 使用
 
 在 Actions 页面点 **Run workflow**，填 `base_url`（基线固件直链）以及 frp 服务端地址/端口/
@@ -72,3 +79,23 @@ LuCI 里 **服务 → frpc** 可改服务端地址、端口、token 与通道；
   配置里已设 `login_fail_exit 0`，4G 还没拨通时会持续重试而不是退出。
 - 本仓库的 `.config` 保持 **EdgeLink EL-953** 原样，避免影响原有的源码编译流程；
   WE826-Q 固件走上面这条重封装流水线。
+
+## 已验证的构建结果（run #2, commit e4d210ad）
+
+| 项目 | 值 |
+| --- | --- |
+| 产物 | `immortalwrt-ath79-generic-zbt_we826-q-squashfs-sysupgrade.bin` |
+| 大小 | 14903872 字节 |
+| sha256 | `c566070ff46e82b8ff1b44212fd83d682f1acdc5f9a05db35dc26c8aa963acf7` |
+| rootfs_offset | 0x208A40（与基线一致） |
+| rootfs_size | 12767898（基线 9109680） |
+| squashfs | 12771328 字节, xz, 256K 块 |
+| 分区预算 | split=0xE40000, overlay=1638400 (1.56MB) |
+| kernel 区 | 与基线逐字节一致 |
+| frpc 二进制 | usr/bin/frpc 14667136 字节, ELF 头正常 |
+
+rootfs 内已确认存在：`usr/bin/frpc`、`etc/config/frpc`、`etc/init.d/frpc`、
+`etc/rc.d/S99frpc`、`usr/share/luci/menu.d/luci-app-frpc.json`、
+`usr/share/rpcd/acl.d/luci-app-frpc.json`、
+`www/luci-static/resources/view/frpc.js`、
+`usr/lib/lua/luci/i18n/frpc.zh-cn.lmo`、`dev/console`。
