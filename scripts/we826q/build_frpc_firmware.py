@@ -209,6 +209,45 @@ def ensure_frpc_account(tree):
         os.makedirs(os.path.join(tree, d.replace('/', os.sep)), exist_ok=True)
 
 
+# ----------------------------------------------------------------- 提权
+def is_root():
+    return os.name == 'posix' and hasattr(os, 'geteuid') and os.geteuid() == 0
+
+
+def maybe_elevate(ap):
+    """unsquashfs 需要 root 才能在解出的目录里创建 /dev 下的字符设备节点。
+
+    GitHub runner 上当前用户不是 root, /dev/console 会创建失败并让 unsquashfs
+    返回 2。这里用 sudo 重新执行自身。Windows 本机演练没有 sudo, 直接跳过。
+    """
+    if ap.no_sudo or os.name != 'posix' or is_root():
+        return
+    sudo = shutil.which('sudo')
+    if not sudo:
+        print('[!] 非 root 且找不到 sudo, /dev 设备节点会缺失')
+        return
+    argv = [sys.executable, os.path.abspath(__file__)] + sys.argv[1:]
+    for extra in (['-E'], []):
+        cmd = [sudo] + extra + argv
+        print('[i] 需要 root 创建 /dev 设备节点, 通过 sudo 重新执行本脚本')
+        rc = subprocess.call(cmd)
+        if rc == 0:
+            sys.exit(0)
+    raise SystemExit('sudo 提权失败, 无法创建 /dev 设备节点')
+
+
+def restore_owner(path):
+    """sudo 提权后把产物 chown 回原调用者, 方便后续步骤读写。"""
+    uid = os.environ.get('SUDO_UID')
+    gid = os.environ.get('SUDO_GID')
+    if not uid or not gid:
+        return
+    try:
+        os.chown(path, int(uid), int(gid))
+    except OSError:
+        pass
+
+
 # ----------------------------------------------------------------- 主流程
 def run(cmd, allow_rc=(0,)):
     print('  $ ' + ' '.join(cmd))
@@ -239,7 +278,11 @@ def main():
                     help='允许 unsquashfs 返回 2(Windows 无权限建符号链接时, 仅用于本机演练)')
     ap.add_argument('--unsquashfs', default='unsquashfs')
     ap.add_argument('--mksquashfs', default='mksquashfs')
+    ap.add_argument('--no-sudo', action='store_true',
+                    help='禁止自动 sudo 提权(root 才能创建 /dev 设备节点)')
     a = ap.parse_args()
+
+    maybe_elevate(a)
 
     work = os.path.abspath(a.work)
     tree = os.path.join(work, 'tree')
@@ -267,8 +310,12 @@ def main():
         fh.write(base[rootfs_offset:rootfs_offset + rootfs_size])
     if open(stock, 'rb').read(4) not in (b'hsqs', b'hsqt'):
         raise SystemExit('rootfs_offset 处不是 squashfs')
-    run([a.unsquashfs, '-no-progress', '-d', tree, stock],
-        allow_rc=(0, 2) if a.partial_unsquashfs_ok else (0,))
+    allow_rc = (0, 2) if a.partial_unsquashfs_ok else (0,)
+    if not is_root():
+        allow_rc = (0, 2)
+        print('[!] 非 root 运行: /dev 下的字符设备节点无法创建(/dev/console 将缺失), '
+              '运行时由 devtmpfs 补齐')
+    run([a.unsquashfs, '-no-progress', '-d', tree, stock], allow_rc=allow_rc)
 
     print('=== 2. 注入 frpc 插件 ===')
     install_ipk(tree, a.frpc_ipk, 'frpc', a.strict_symlinks)
@@ -365,6 +412,11 @@ def main():
 
     with open(os.path.abspath(a.out) + '.sha256', 'w') as fh:
         fh.write('%s  %s\n' % (digest, os.path.basename(a.out)))
+    # sudo 提权时把产物交还给原调用者
+    out_abs = os.path.abspath(a.out)
+    restore_owner(out_abs)
+    restore_owner(out_abs + '.sha256')
+    restore_owner(os.path.dirname(out_abs))
     return 0
 
 
